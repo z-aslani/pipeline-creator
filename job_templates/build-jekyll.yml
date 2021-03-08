@@ -1,0 +1,16 @@
+build-jekyll:
+  stage: build
+  image: circleci/ruby:2.4-node
+  artifacts:
+    paths:
+      - dist
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - node_modules
+  before_script:
+    - gem install bundler -v 2.1.4
+    - bundle install
+    - npm install
+  script:
+    - npm run build

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: pipeline-creator
+  name: pipeline-creator
+  namespace: infra
+spec:
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  replicas: 1
+  selector:
+    matchLabels:
+      run: pipeline-creator
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+    spec:
+      containers:
+        image: reg.pegah.tech/infra/pipeline-creator:initial
+        imagePullPolicy: IfNotPresent
+        name: pipeline-creator
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: reg-pegah-credit
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: backtory-servers
+        operator: Exists

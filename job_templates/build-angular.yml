@@ -1,0 +1,20 @@
+build-angular:
+  stage: build
+  image: node:lts
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "PRODUCTION_BRANCH"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "STAGING_BRANCH"'
+      when: on_success
+    - when: never
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - node_modules
+  artifacts:
+    paths:
+      - dist
+  before_script:
+    - npm install --prefer-offline
+  script:
+    - npm run build

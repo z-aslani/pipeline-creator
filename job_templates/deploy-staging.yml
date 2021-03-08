@@ -1,0 +1,16 @@
+deploy-staging:
+  stage: deploy
+  image: kroniak/ssh-client:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "STAGING_BRANCH"'
+      when: DEPLOY_MODE
+    - when: never
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
+  before_script:
+    - chmod 700 /runner/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add /runner/.ssh/id_rsa
+  script:
+    - ssh -o "StrictHostKeyChecking=no" root@$STAGING_SSH_SERVER "/home/gitlab-cicd/update-deploy.sh -n stg-$CI_PROJECT_NAMESPACE -d $CI_PROJECT_NAME -c $CI_PROJECT_NAME -i $CI_PROJECT_NAME -t $IMAGE_TAG -b $CI_COMMIT_BRANCH -r $CI_PROJECT_NAMESPACE -p $CI_PROJECT_PATH -m \"$CI_COMMIT_MESSAGE\" -u $GITLAB_USER_LOGIN"

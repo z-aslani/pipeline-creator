@@ -1,0 +1,19 @@
+maven-unit-tests:
+  stage: test
+  image: maven:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "PRODUCTION_BRANCH"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "STAGING_BRANCH"'
+      when: on_success
+    - when: never
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+    MAVEN_CLI_OPTS: "-s /runner/.m2/settings.xml --batch-mode"
+  dependencies: []
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - .m2/repository
+  script:
+    - mvn test $MAVEN_CLI_OPTS

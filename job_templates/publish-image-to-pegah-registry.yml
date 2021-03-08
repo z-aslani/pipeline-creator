@@ -1,0 +1,20 @@
+publish-image-to-pegah-registry:
+  stage: publish-image
+  image: docker:20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "PRODUCTION_BRANCH"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "STAGING_BRANCH"'
+      when: on_success
+    - when: never
+  variables:
+    GIT_STRATEGY: fetch
+  dependencies:
+    - BUILD_JOB_NAME
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$PEGAH_REGISTRY_URL\":{\"username\":\"$PEGAH_REGISTRY_USERNAME\",\"password\":\"$PEGAH_REGISTRY_PASSWORD\"},\"$HETZNER_REGISTRY_URL\":{\"username\":\"$HETZNER_REGISTRY_USERNAME\",\"password\":\"$HETZNER_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+    - echo publishing image $PEGAH_REGISTRY_IMAGE_URL to Pegah Registry
+  script:
+    - docker build --tag $PEGAH_REGISTRY_IMAGE_URL .
+    - docker image push $PEGAH_REGISTRY_IMAGE_URL

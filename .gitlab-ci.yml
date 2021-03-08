@@ -1,0 +1,73 @@
+stages:
+  - build-packages
+  - publish-image
+  - deploy
+
+variables:
+  IMAGE_TAG: $CI_PIPELINE_ID-$CI_COMMIT_BRANCH-$CI_COMMIT_SHORT_SHA
+  IMAGE_URL: $PEGAH_REGISTRY_URL/$IMAGE_REPOSITORY/$CI_PROJECT_NAME:$CI_PIPELINE_ID-$CI_COMMIT_BRANCH-$CI_COMMIT_SHORT_SHA
+
+
+install-packages:
+  stage: build-packages
+  image: python:3.8
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - when: never
+  variables:
+    PIP_CACHE_DIR: '$CI_PROJECT_DIR/.cache/pip'
+  cache:
+    key: $CI_JOB_NAME
+    paths:
+      - venv
+      - .cache
+  artifacts:
+    paths:
+      - venv
+  before_script:
+    - python -V
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+  script:
+    - pip install -r requirements.txt
+
+
+build-push-docker-image:
+  stage: publish-image
+  image: docker:20
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: on_success
+    - when: never
+  dependencies:
+    - install-packages
+  before_script:
+    - mkdir -p ~/.docker
+    - export HTTP_PROXY=$PROXY_HOST:$PROXY_PORT
+    - export HTTPS_PROXY=$PROXY_HOST:$PROXY_PORT
+    - export NO_PROXY="localhost,127.0.0.1,172.16.0.0/16"
+    - echo "{\"auths\":{\"$PEGAH_REGISTRY_URL\":{\"username\":\"$PEGAH_REGISTRY_USERNAME\",\"password\":\"$PEGAH_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+    - echo pushing image $IMAGE_URL to registry
+  script:
+    - docker build --tag $IMAGE_URL .
+    - docker image push $IMAGE_URL
+
+
+deploy-production:
+  stage: deploy
+  image: kroniak/ssh-client:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - when: never
+  variables:
+    GIT_STRATEGY: none
+  dependencies: []
+  before_script:
+    - chmod 700 /runner/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add /runner/.ssh/id_rsa
+  script:
+    - ssh -o "StrictHostKeyChecking=no" root@$PRODUCTION_SSH_SERVER "/home/gitlab-cicd/update-deploy.sh -n $K8S_PRODUCTION_NAMESPACE -d $CI_PROJECT_NAME -c $CI_PROJECT_NAME -i $CI_PROJECT_NAME -t $IMAGE_TAG -b $CI_COMMIT_BRANCH -r $IMAGE_REPOSITORY -p $CI_PROJECT_PATH -m \"$CI_COMMIT_MESSAGE\" -u $GITLAB_USER_LOGIN"
